@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Risk & Target Calculator</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b1220">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0b1220;
+      color: #e5e7eb;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9ca3af;
+      margin: 20px 0 8px;
+    }
+
+    .card {
+      background: #111827;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #1f2937;
+      color: white;
+    }
+
+    .output-primary {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .output-secondary {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .decision {
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .valid { background: #064e3b; color: #10b981; }
+    .caution { background: #78350f; color: #f59e0b; }
+    .invalid { background: #7f1d1d; color: #ef4444; }
+  </style>
+</head>
+
+<body>
+
+  <h1>Trade Risk & Target Calculator</h1>
+  <div class="subtitle">
+    Position sizing and risk validation for trade execution
+  </div>
+
+  <div class="section-title">Inputs</div>
+
+  <div class="card">
+    <label>Account Size</label>
+    <input id="account" type="number">
+
+    <label>Risk %</label>
+    <input id="riskPercent" type="number">
+
+    <label>Entry Price</label>
+    <input id="entry" type="number">
+
+    <label>Stop Price</label>
+    <input id="stop" type="number">
+
+    <label>Target Price</label>
+    <input id="target" type="number">
+  </div>
+
+  <div class="section-title">Decision Outputs</div>
+
+  <div class="card">
+    <div id="decisionBox" class="decision">—</div>
+  </div>
+
+  <div class="card">
+    <div class="output-primary">R Multiple: <span id="rMultiple">—</span></div>
+    <div class="output-primary">Shares: <span id="shares">—</span></div>
+    <div class="output-primary">Max Risk: <span id="maxRisk">—</span></div>
+    <div class="output-primary">Projected Profit: <span id="profit">—</span></div>
+
+    <hr>
+
+    <div class="output-secondary">Stop %: <span id="stopPct">—</span></div>
+    <div class="output-secondary">Target %: <span id="targetPct">—</span></div>
+  </div>
+
+<script>
+const STORAGE_KEY = "trade-risk-target-v1";
+
+const inputs = document.querySelectorAll("input");
+
+inputs.forEach(input => {
+  input.addEventListener("input", calculate);
+});
+
+function calculate() {
+  const account = parseFloat(document.getElementById("account").value);
+  const riskPercent = parseFloat(document.getElementById("riskPercent").value);
+  const entry = parseFloat(document.getElementById("entry").value);
+  const stop = parseFloat(document.getElementById("stop").value);
+  const target = parseFloat(document.getElementById("target").value);
+
+  if (!account || !riskPercent || !entry || !stop || !target) return;
+
+  const riskAmount = account * (riskPercent / 100);
+  const riskPerShare = Math.abs(entry - stop);
+  const shares = Math.floor(riskAmount / riskPerShare);
+
+  const rewardPerShare = Math.abs(target - entry);
+  const profit = shares * rewardPerShare;
+
+  const rMultiple = rewardPerShare / riskPerShare;
+
+  const stopPct = ((entry - stop) / entry) * 100;
+  const targetPct = ((target - entry) / entry) * 100;
+
+  document.getElementById("shares").innerText = shares;
+  document.getElementById("maxRisk").innerText = "$" + riskAmount.toFixed(2);
+  document.getElementById("profit").innerText = "$" + profit.toFixed(2);
+  document.getElementById("rMultiple").innerText = rMultiple.toFixed(2);
+  document.getElementById("stopPct").innerText = stopPct.toFixed(2) + "%";
+  document.getElementById("targetPct").innerText = targetPct.toFixed(2) + "%";
+
+  const decisionBox = document.getElementById("decisionBox");
+
+  if (rMultiple >= 1.5) {
+    decisionBox.innerText = "VALID";
+    decisionBox.className = "decision valid";
+  } else if (rMultiple >= 1.0) {
+    decisionBox.innerText = "CAUTION";
+    decisionBox.className = "decision caution";
+  } else {
+    decisionBox.innerText = "INVALID";
+    decisionBox.className = "decision invalid";
+  }
+
+  saveState();
+}
+
+function saveState() {
+  const data = {};
+  inputs.forEach(input => {
+    data[input.id] = input.value;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadState() {
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  if (!data) return;
+
+  inputs.forEach(input => {
+    if (data[input.id]) input.value = data[input.id];
+  });
+
+  calculate();
+}
+
+loadState();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+</script>
+
+</body>
+</html>
